@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YT Playlist Downloader</title>
+  <meta name="description" content="Download YouTube playlists as MP3/MP4, choose save location, track progress in real-time." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #07070e;
+      --surface: #111120;
+      --surface2: #181828;
+      --surface3: #1f1f35;
+      --border: rgba(255,255,255,0.07);
+      --accent: #7c3aed;
+      --accent2: #ec4899;
+      --accent-glow: rgba(124,58,237,0.3);
+      --green: #10b981;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --text: #eeeef8;
+      --muted: #7878a0;
+      --r: 16px; --rs: 10px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* orbs */
+    .orbs { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .orb  { position: absolute; border-radius: 50%; filter: blur(110px); opacity: 0.15; animation: float 14s ease-in-out infinite alternate; }
+    .o1 { width:600px;height:600px;background:var(--accent);top:-180px;left:-80px; }
+    .o2 { width:380px;height:380px;background:var(--accent2);bottom:-80px;right:-60px;animation-delay:-5s; }
+    .o3 { width:260px;height:260px;background:#06b6d4;top:45%;left:65%;animation-delay:-9s; }
+    @keyframes float { from{transform:translate(0,0) scale(1)} to{transform:translate(28px,36px) scale(1.07)} }
+
+    .wrap { position:relative; z-index:1; max-width:920px; margin:0 auto; padding:32px 18px 80px; }
+
+    /* header */
+    header { text-align:center; margin-bottom:44px; }
+    .logo  { display:inline-flex;align-items:center;gap:12px;margin-bottom:14px; }
+    .logo-icon {
+      width:52px;height:52px;border-radius:14px;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      display:flex;align-items:center;justify-content:center;
+      font-size:24px;box-shadow:0 0 28px var(--accent-glow);
+    }
+    .logo-text { font-size:1.55rem;font-weight:800;letter-spacing:-0.5px; }
+    .logo-text span { background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent; }
+    header p  { color:var(--muted);font-size:.95rem; }
+
+    /* status bar */
+    #sys-bar {
+      display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;
+      padding:10px 16px;border-radius:var(--rs);
+      background:var(--surface);border:1px solid var(--border);
+      font-size:.75rem;
+    }
+    .sysitem { display:flex;align-items:center;gap:5px;color:var(--muted); }
+    .sysitem .dot { width:7px;height:7px;border-radius:50%; }
+    .dot-ok  { background:var(--green); }
+    .dot-warn{ background:var(--yellow); }
+
+    /* card */
+    .card {
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:var(--r);padding:26px;margin-bottom:18px;
+      transition:box-shadow .3s;
+    }
+    .card:hover { box-shadow:0 0 36px rgba(124,58,237,.09); }
+    .card-label {
+      font-size:.7rem;font-weight:700;letter-spacing:1.6px;
+      text-transform:uppercase;color:var(--muted);margin-bottom:14px;
+    }
+
+    /* inputs */
+    .field {
+      background:var(--surface2);border:1.5px solid var(--border);
+      border-radius:var(--rs);color:var(--text);
+      font-family:inherit;font-size:.93rem;
+      padding:13px 16px;outline:none;width:100%;
+      transition:border-color .25s, box-shadow .25s;
+    }
+    .field::placeholder { color:var(--muted); }
+    .field:focus { border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow); }
+
+    .row  { display:flex;gap:10px;flex-wrap:wrap; }
+    .row .field { flex:1;min-width:0; }
+
+    /* buttons */
+    .btn {
+      display:inline-flex;align-items:center;justify-content:center;gap:7px;
+      padding:13px 22px;border-radius:var(--rs);
+      font-size:.88rem;font-weight:600;font-family:inherit;
+      border:none;cursor:pointer;white-space:nowrap;transition:all .2s;
+    }
+    .btn:disabled { opacity:.4;cursor:not-allowed; }
+    .btn-primary {
+      background:linear-gradient(135deg,var(--accent),#9f67ff);color:#fff;
+      box-shadow:0 4px 18px var(--accent-glow);
+    }
+    .btn-primary:hover:not(:disabled) { transform:translateY(-1px);box-shadow:0 6px 26px var(--accent-glow); }
+    .btn-primary:active:not(:disabled) { transform:translateY(0); }
+    .btn-green {
+      background:linear-gradient(135deg,var(--green),#059669);color:#fff;
+      box-shadow:0 4px 16px rgba(16,185,129,.28);
+    }
+    .btn-green:hover:not(:disabled){ transform:translateY(-1px); }
+    .btn-outline {
+      background:transparent;border:1.5px solid var(--border);color:var(--muted);
+    }
+    .btn-outline:hover:not(:disabled){ border-color:var(--accent);color:var(--text); }
+
+    /* options grid */
+    .opts-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px; }
+    @media(max-width:500px){ .opts-grid{ grid-template-columns:1fr; } }
+    .opt-lbl { display:block;font-size:.72rem;color:var(--muted);font-weight:600;margin-bottom:7px;letter-spacing:.5px; }
+
+    .radio-row { display:flex;gap:8px;flex-wrap:wrap; }
+    .rbtn {
+      padding:8px 15px;border-radius:99px;border:1.5px solid var(--border);
+      cursor:pointer;font-size:.8rem;font-weight:500;color:var(--muted);
+      transition:all .18s;user-select:none;
+    }
+    .rbtn:has(input:checked) { border-color:var(--accent);background:rgba(124,58,237,.14);color:var(--text); }
+    .rbtn input { display:none; }
+
+    select.field {
+      appearance:none;cursor:pointer;padding-right:36px;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%237878a0' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 12px center;
+    }
+    select.field option { background:var(--surface2); }
+
+    /* save dir row */
+    .dir-row { display:flex;gap:8px;align-items:center;margin-top:14px; }
+    .dir-row .field { flex:1;font-size:.82rem; }
+    .dir-label { font-size:.72rem;color:var(--muted);font-weight:600;letter-spacing:.5px;margin-bottom:6px;display:block; }
+
+    /* playlist preview */
+    .pl-info { display:flex;gap:14px;align-items:flex-start;margin-bottom:18px;flex-wrap:wrap; }
+    .pl-thumb { width:88px;height:60px;object-fit:cover;border-radius:8px;background:var(--surface2);flex-shrink:0; }
+    .pl-meta h3  { font-size:.98rem;font-weight:700;margin-bottom:4px; }
+    .pl-meta p   { font-size:.78rem;color:var(--muted); }
+
+    .track-list { max-height:270px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--rs); }
+    .track-list::-webkit-scrollbar { width:5px; }
+    .track-list::-webkit-scrollbar-thumb { background:var(--accent);border-radius:99px; }
+
+    .track {
+      display:flex;align-items:center;gap:10px;
+      padding:9px 13px;border-bottom:1px solid var(--border);
+      transition:background .14s;
+    }
+    .track:last-child { border-bottom:none; }
+    .track:hover { background:rgba(255,255,255,.025); }
+    .t-num  { font-size:.72rem;color:var(--muted);width:22px;text-align:right;flex-shrink:0; }
+    .t-thumb{ width:38px;height:26px;object-fit:cover;border-radius:4px;background:var(--surface2);flex-shrink:0; }
+    .t-title{ flex:1;font-size:.81rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis; }
+    .t-dur  { font-size:.72rem;color:var(--muted);flex-shrink:0; }
+
+    /* progress */
+    .prog-wrap { margin-top:4px; }
+    .prog-labels { display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-bottom:7px; }
+    .prog-bg { height:8px;border-radius:99px;background:var(--surface2);overflow:hidden; }
+    .prog-fill {
+      height:100%;border-radius:99px;
+      background:linear-gradient(90deg,var(--accent),var(--accent2));
+      transition:width .5s ease;box-shadow:0 0 10px var(--accent-glow);
+    }
+
+    /* badge */
+    .badge {
+      display:inline-flex;align-items:center;gap:6px;
+      padding:3px 11px;border-radius:99px;font-size:.72rem;font-weight:700;
+    }
+    .ba-q  { background:rgba(107,114,128,.15);color:#9ca3af; }
+    .ba-f  { background:rgba(245,158,11,.12);color:var(--yellow); }
+    .ba-d  { background:rgba(124,58,237,.12);color:#a78bfa; }
+    .ba-ok { background:rgba(16,185,129,.12);color:var(--green); }
+    .ba-er { background:rgba(239,68,68,.12);color:var(--red); }
+    .dot2  { width:6px;height:6px;border-radius:50%;background:currentColor; }
+    .pulse { animation:pulse 1.1s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.25} }
+
+    /* job history row */
+    .job-row { padding:14px 0;border-bottom:1px solid var(--border); }
+    .job-row:last-child { border-bottom:none; }
+    .job-hdr { display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:8px; }
+    .job-title { flex:1;font-size:.86rem;font-weight:600; }
+    .job-sub { font-size:.73rem;color:var(--muted);margin-top:2px; }
+
+    /* log line */
+    .log-line {
+      font-size:.72rem;color:var(--muted);padding:6px 10px;
+      background:var(--surface2);border-radius:6px;margin-top:8px;
+      word-break:break-all;
+    }
+
+    /* toast */
+    #toast {
+      position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(16px);
+      background:var(--surface2);border:1px solid var(--border);
+      border-radius:99px;padding:11px 22px;
+      font-size:.82rem;color:var(--text);
+      opacity:0;transition:all .32s;pointer-events:none;z-index:999;white-space:nowrap;
+    }
+    #toast.show { opacity:1;transform:translateX(-50%) translateY(0); }
+
+    /* spinner */
+    .spin { width:15px;height:15px;border-radius:50%;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;animation:sp .65s linear infinite;flex-shrink:0; }
+    @keyframes sp { to{transform:rotate(360deg)} }
+
+    .hidden { display:none!important; }
+    .mt2 { margin-top:8px; }
+    .mt3 { margin-top:14px; }
+    .flex-between { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px; }
+    .empty { text-align:center;padding:36px 20px;color:var(--muted); }
+    .empty .ico { font-size:2.4rem;margin-bottom:10px; }
+
+    * { scrollbar-width:thin;scrollbar-color:var(--accent) transparent; }
+  </style>
+</head>
+<body>
+
+<div class="orbs">
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="orb o3"></div>
+</div>
+
+<div class="wrap">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🎵</div>
+      <div class="logo-text"><span>YT</span> Downloader</div>
+    </div>
+    <p>Download YouTube playlists &amp; videos. Choose your format, quality &amp; save location.</p>
+  </header>
+
+  <!-- System status bar -->
+  <div id="sys-bar">
+    <div class="sysitem"><div class="dot dot-warn" id="dot-ffmpeg"></div><span id="lbl-ffmpeg">Checking FFmpeg…</span></div>
+    <div class="sysitem"><div class="dot dot-warn" id="dot-cookies"></div><span id="lbl-cookies">Checking cookies…</span></div>
+  </div>
+
+  <!-- Step 1: URL -->
+  <div class="card">
+    <div class="card-label">Step 1 — Paste YouTube URL</div>
+    <div class="row">
+      <input type="text" id="url-input" class="field" placeholder="https://www.youtube.com/playlist?list=..." autocomplete="off" spellcheck="false" />
+      <button class="btn btn-primary" id="btn-preview" onclick="doPreview()">
+        <span id="sp-prev" class="spin hidden"></span>
+        <span id="lb-prev">🔍 Preview</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 2: Preview (hidden) -->
+  <div class="card hidden" id="card-preview">
+    <div class="card-label">Step 2 — Playlist Preview</div>
+    <div class="pl-info">
+      <img id="pl-thumb" class="pl-thumb" src="" alt="" onerror="this.style.display='none'" />
+      <div class="pl-meta">
+        <h3 id="pl-title">…</h3>
+        <p id="pl-meta"></p>
+      </div>
+    </div>
+    <div class="track-list" id="track-list"></div>
+    <p id="more-note" class="hidden" style="font-size:.72rem;color:var(--muted);text-align:center;margin-top:8px;"></p>
+  </div>
+
+  <!-- Step 3: Options -->
+  <div class="card hidden" id="card-options">
+    <div class="card-label">Step 3 — Format, Quality &amp; Save Location</div>
+
+    <div class="opts-grid">
+      <div>
+        <span class="opt-lbl">FORMAT</span>
+        <div class="radio-row">
+          <label class="rbtn"><input type="radio" name="fmt" value="audio" id="r-audio" checked onchange="onFmtChange()" />🎵 Audio</label>
+          <label class="rbtn"><input type="radio" name="fmt" value="video" id="r-video" onchange="onFmtChange()" />🎬 Video</label>
+        </div>
+      </div>
+      <div>
+        <span class="opt-lbl">QUALITY</span>
+        <select id="sel-quality" class="field" disabled style="opacity:.4">
+          <option value="best">Best Available</option>
+          <option value="1080">1080p HD</option>
+          <option value="720">720p</option>
+          <option value="480">480p</option>
+          <option value="360">360p</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Save location -->
+    <div class="mt3">
+      <span class="dir-label">💾 SAVE LOCATION (paste a folder path)</span>
+      <div class="dir-row">
+        <input type="text" id="save-dir" class="field" placeholder="e.g. C:\Users\Admin\Music\Downloads" />
+        <button class="btn btn-outline" onclick="openCurrentFolder()" title="Open current download folder">📂</button>
+      </div>
+      <p id="ffmpeg-note" style="font-size:.7rem;color:var(--yellow);margin-top:6px;" class="hidden"></p>
+    </div>
+
+    <div class="mt3" style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-green" id="btn-dl" onclick="doDownload()">
+        <span id="sp-dl" class="spin hidden"></span>
+        <span id="lb-dl">⬇️ Download Playlist</span>
+      </button>
+      <button class="btn btn-outline" onclick="openCurrentFolder()">📂 Open Downloads Folder</button>
+    </div>
+  </div>
+
+  <!-- Current job -->
+  <div class="card hidden" id="card-job">
+    <div class="flex-between" style="margin-bottom:12px;">
+      <div class="card-label" style="margin:0;">Current Download</div>
+      <span class="badge ba-d" id="job-badge"><span class="dot2 pulse"></span><span id="job-badge-txt">Queued</span></span>
+    </div>
+    <div style="font-size:.92rem;font-weight:700;margin-bottom:3px;" id="job-title">—</div>
+    <div style="font-size:.72rem;color:var(--muted);" id="job-savedir"></div>
+    <div class="log-line mt2" id="job-log">—</div>
+    <div style="font-size:.72rem;color:var(--accent2);margin-top:4px;" id="job-speed"></div>
+    <div class="prog-wrap mt2">
+      <div class="prog-labels">
+        <span id="job-counts">0 / 0 tracks</span>
+        <span id="job-pct">0%</span>
+      </div>
+      <div class="prog-bg"><div class="prog-fill" id="job-fill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="card">
+    <div class="flex-between">
+      <div class="card-label" style="margin:0;">Download History</div>
+      <button class="btn btn-outline" style="padding:5px 12px;font-size:.72rem;" onclick="clearHist()">Clear</button>
+    </div>
+    <div id="hist-list">
+      <div class="empty"><div class="ico">📋</div><p>No downloads yet.</p></div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────
+let curJobId = null, pollTimer = null, allJobs = [];
+let defaultDir = '';
+
+// ── Toast ─────────────────────────────────────
+function toast(msg, ms=3200) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// ── Format helpers ────────────────────────────
+function fmtDur(s) {
+  if (!s) return '';
+  return `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function badgeCls(st) {
+  return {queued:'ba-q',fetching:'ba-f',downloading:'ba-d',done:'ba-ok',error:'ba-er'}[st]||'ba-q';
+}
+function badgePulse(st) { return st==='downloading'||st==='fetching'; }
+
+// ── System info ───────────────────────────────
+async function loadSysInfo() {
+  try {
+    const r = await fetch('/api/info');
+    const d = await r.json();
+    defaultDir = d.default_dir || '';
+    document.getElementById('save-dir').value = defaultDir;
+
+    const dotFf = document.getElementById('dot-ffmpeg');
+    const lblFf = document.getElementById('lbl-ffmpeg');
+    if (d.ffmpeg) {
+      dotFf.className='dot dot-ok';
+      lblFf.textContent='FFmpeg: available (MP3/MP4 merge supported)';
+    } else {
+      dotFf.className='dot dot-warn';
+      lblFf.textContent='FFmpeg: not found — audio saves as .m4a, video as progressive .mp4';
+      document.getElementById('ffmpeg-note').textContent=
+        '⚠️ FFmpeg not found: audio will be saved as .m4a (play in VLC/Media Player). Install FFmpeg for MP3 output.';
+    }
+
+    const dotCk = document.getElementById('dot-cookies');
+    const lblCk = document.getElementById('lbl-cookies');
+    if (d.browser) {
+      dotCk.className='dot dot-ok';
+      lblCk.textContent=`Browser cookies: ${d.browser} (reduces 403 errors)`;
+    } else {
+      dotCk.className='dot dot-warn';
+      lblCk.textContent='Browser cookies: none (anonymous mode)';
+    }
+  } catch(e) { /* ignore */ }
+}
+
+// ── Format change ─────────────────────────────
+function onFmtChange() {
+  const isVid = document.getElementById('r-video').checked;
+  const q = document.getElementById('sel-quality');
+  q.disabled = !isVid;
+  q.style.opacity = isVid ? '1' : '.4';
+  // ffmpeg-note visibility is set once on load, not toggled here
+}
+onFmtChange();
+
+// ── Preview ───────────────────────────────────
+async function doPreview() {
+  const url = document.getElementById('url-input').value.trim();
+  if (!url) { toast('⚠️ Paste a YouTube URL first'); return; }
+  setLoading('preview', true);
+  try {
+    const r = await fetch('/api/preview', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({url})
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    renderPreview(d);
+    document.getElementById('card-preview').classList.remove('hidden');
+    document.getElementById('card-options').classList.remove('hidden');
+    toast('✅ Playlist loaded!');
+  } catch(e) {
+    toast(`❌ ${e.message}`, 6000);
+  } finally {
+    setLoading('preview', false);
+  }
+}
+
+function renderPreview(d) {
+  document.getElementById('pl-thumb').src = d.thumbnail||'';
+  document.getElementById('pl-title').textContent = d.title||'Unknown';
+  document.getElementById('pl-meta').textContent =
+    [d.uploader, `${d.count} video${d.count!==1?'s':''}`].filter(Boolean).join(' · ');
+
+  const list = document.getElementById('track-list');
+  list.innerHTML = (d.videos||[]).map(v => `
+    <div class="track">
+      <span class="t-num">${v.index}</span>
+      <img class="t-thumb" src="${esc(v.thumbnail||'')}" alt="" onerror="this.src=''" />
+      <span class="t-title" title="${esc(v.title)}">${esc(v.title)}</span>
+      <span class="t-dur">${fmtDur(v.duration)}</span>
+    </div>
+  `).join('');
+
+  const more = d.count - (d.videos||[]).length;
+  const noteEl = document.getElementById('more-note');
+  if (more > 0) { noteEl.textContent=`…and ${more} more track${more>1?'s':''}`; noteEl.classList.remove('hidden'); }
+  else noteEl.classList.add('hidden');
+}
+
+// ── Download ──────────────────────────────────
+async function doDownload() {
+  const url     = document.getElementById('url-input').value.trim();
+  const fmt     = document.querySelector('input[name="fmt"]:checked').value;
+  const quality = document.getElementById('sel-quality').value;
+  const saveDir = document.getElementById('save-dir').value.trim() || defaultDir;
+
+  if (!url) { toast('⚠️ No URL'); return; }
+  if (!saveDir) { toast('⚠️ Enter a save location'); return; }
+
+  setLoading('dl', true);
+  try {
+    const r = await fetch('/api/download', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({url, format:fmt, quality, save_dir:saveDir})
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    curJobId = d.job_id;
+    document.getElementById('card-job').classList.remove('hidden');
+    startPoll();
+    toast('🚀 Download started!');
+  } catch(e) {
+    toast(`❌ ${e.message}`, 6000);
+  } finally {
+    setLoading('dl', false);
+  }
+}
+
+// ── Polling ───────────────────────────────────
+function startPoll() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollJob, 1500);
+  pollJob();
+}
+async function pollJob() {
+  if (!curJobId) return;
+  try {
+    const r = await fetch(`/api/status/${curJobId}`);
+    const job = await r.json();
+    renderJobCard(job);
+    if (job.status === 'done' || job.status === 'error') {
+      clearInterval(pollTimer); pollTimer = null;
+      if (job.status==='done')
+        toast(`✅ Done! ${job.downloaded} downloaded, ${job.failed} skipped.`, 5000);
+      else
+        toast(`❌ Error: ${job.error}`, 7000);
+      loadHistory();
+    }
+  } catch {/* ignore */}
+}
+
+const STATUS_LABELS={queued:'Queued',fetching:'Fetching…',downloading:'Downloading',done:'Done ✔',error:'Error'};
+function renderJobCard(job) {
+  const badge = document.getElementById('job-badge');
+  badge.className='badge '+badgeCls(job.status);
+  badge.innerHTML=`<span class="dot2${badgePulse(job.status)?' pulse':''}"></span><span>${STATUS_LABELS[job.status]||job.status}</span>`;
+  document.getElementById('job-badge-txt');
+  document.getElementById('job-title').textContent = job.title || job.url || '—';
+  document.getElementById('job-savedir').textContent = job.save_dir ? `📁 ${job.save_dir}` : '';
+  document.getElementById('job-log').textContent = job.log || '—';
+  document.getElementById('job-speed').textContent = job.download_note || '';
+  document.getElementById('job-counts').textContent = `${job.downloaded} / ${job.total} tracks`;
+  document.getElementById('job-pct').textContent = `${job.progress}%`;
+  document.getElementById('job-fill').style.width = `${job.progress}%`;
+}
+
+// ── History ───────────────────────────────────
+async function loadHistory() {
+  try {
+    const r = await fetch('/api/jobs');
+    allJobs = await r.json();
+    renderHist(allJobs);
+  } catch {/* ignore */}
+}
+// jobDirs: maps job.id → job.save_dir so we never embed raw paths in onclick HTML
+const jobDirs = new Map();
+
+function renderHist(jobs) {
+  const el = document.getElementById('hist-list');
+  if (!jobs.length) {
+    el.innerHTML='<div class="empty"><div class="ico">📋</div><p>No downloads yet.</p></div>';
+    return;
+  }
+  // Store paths safely in the Map
+  jobs.forEach(job => jobDirs.set(job.id, job.save_dir || defaultDir));
+
+  el.innerHTML=[...jobs].reverse().map(job=>`
+    <div class="job-row">
+      <div class="job-hdr">
+        <span class="badge ${badgeCls(job.status)}">
+          <span class="dot2${badgePulse(job.status)?' pulse':''}"></span>
+          <span>${STATUS_LABELS[job.status]||job.status}</span>
+        </span>
+        <div style="flex:1">
+          <div class="job-title">${esc(job.title||job.url||'—')}</div>
+          <div class="job-sub">${esc(job.save_dir||'')} ${job.failed?`· ⚠️ ${job.failed} skipped`:''}</div>
+        </div>
+        <button class="btn btn-outline" style="padding:4px 10px;font-size:.7rem;"
+          data-jobid="${esc(job.id)}" onclick="openJobDir(this)">📂</button>
+      </div>
+      <div class="prog-wrap">
+        <div class="prog-labels">
+          <span style="font-size:.72rem;color:var(--muted)">${job.downloaded} / ${job.total} tracks</span>
+          <span style="font-size:.72rem;color:var(--muted)">${job.progress}%</span>
+        </div>
+        <div class="prog-bg"><div class="prog-fill" style="width:${job.progress}%"></div></div>
+      </div>
+      ${job.error?`<div class="log-line" style="color:var(--red)">${esc(job.error)}</div>`:''}
+      ${job.log&&!job.error?`<div class="log-line">${esc(job.log)}</div>`:''}
+    </div>
+  `).join('');
+}
+function clearHist() { allJobs=[]; jobDirs.clear(); renderHist([]); toast('🗑️ History cleared'); }
+
+// ── Open folder ───────────────────────────────
+function openCurrentFolder() {
+  // Read path from the input field directly — no HTML encoding issues
+  const path = document.getElementById('save-dir').value.trim() || defaultDir;
+  openDir(path);
+}
+function openJobDir(btn) {
+  // Safely retrieve path from JS Map using job ID — never embed paths in HTML
+  const jid = btn.getAttribute('data-jobid');
+  const path = jobDirs.get(jid) || defaultDir;
+  openDir(path);
+}
+async function openDir(path) {
+  try {
+    const r = await fetch('/api/open-folder',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({path})
+    });
+    const d = await r.json();
+    if (d.error) toast(`❌ ${d.error}`);
+    else toast('📂 Opening folder…');
+  } catch(e) {
+    toast(`❌ Could not open folder: ${e.message}`);
+  }
+}
+
+// ── Loading ───────────────────────────────────
+function setLoading(which, on) {
+  if (which==='preview') {
+    document.getElementById('btn-preview').disabled=on;
+    document.getElementById('sp-prev').classList.toggle('hidden',!on);
+    document.getElementById('lb-prev').textContent=on?'Loading…':'🔍 Preview';
+  } else {
+    document.getElementById('btn-dl').disabled=on;
+    document.getElementById('sp-dl').classList.toggle('hidden',!on);
+    document.getElementById('lb-dl').textContent=on?'Starting…':'⬇️ Download Playlist';
+  }
+}
+
+// ── Enter key ─────────────────────────────────
+document.getElementById('url-input').addEventListener('keydown', e=>{ if(e.key==='Enter') doPreview(); });
+
+// ── Init ──────────────────────────────────────
+(async()=>{
+  await loadSysInfo();
+  await loadHistory();
+  const active = allJobs.find(j=>j.status==='downloading'||j.status==='fetching'||j.status==='queued');
+  if (active) { curJobId=active.id; document.getElementById('card-job').classList.remove('hidden'); startPoll(); }
+})();
+</script>
+</body>
+</html>

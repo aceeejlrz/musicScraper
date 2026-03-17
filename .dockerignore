@@ -1,0 +1,10 @@
+.git
+.venv
+venv
+env
+__pycache__
+*.pyc
+*.pyo
+downloads
+UsersAdminAppDataLocalTempyt_test_dl
+UsersAdminOneDriveDesktopAceschoolfilescoding101musicScraperdownloads
